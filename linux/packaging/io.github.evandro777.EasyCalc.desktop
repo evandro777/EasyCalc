@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=EasyCalc
+Name[pt_BR]=EasyCalc
+Comment=Calculator, unit price and percentage
+Comment[pt_BR]=Calculadora, preço unitário e porcentagem
+Exec=easycalc
+Icon=io.github.evandro777.EasyCalc
+Categories=Utility;Calculator;
+Terminal=false

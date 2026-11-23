@@ -1,0 +1,93 @@
+name: Android
+
+# Builds the release APK and the Play Store bundle (.aab) on every push to master and on pull requests, and adds
+# them to the GitHub release when a version tag (v1.0.1, ...) is pushed. The .aab is uploaded to Google Play by hand.
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  build:
+    name: Build APK and AAB
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches pubspec.yaml
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          app=$(sed -nE 's/^version: *([^+]*).*/\1/p' pubspec.yaml)
+          [ "${GITHUB_REF_NAME#v}" = "$app" ] || { echo "tag != pubspec $app"; exit 1; }
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      # Release key from secrets (RELEASING.md). Without them (fork PRs, plain
+      # master pushes) the build is debug-signed; a tag must never ship that.
+      - name: Release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          EASYCALC_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          EASYCALC_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then echo "tag build without the ANDROID_KEYSTORE_B64 secret"; exit 1; fi
+            echo "no keystore secret: debug-signed build"; exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "EASYCALC_KEYSTORE=$RUNNER_TEMP/release.jks"
+            echo "EASYCALC_KEYSTORE_PASSWORD=$EASYCALC_KEYSTORE_PASSWORD"
+            echo "EASYCALC_KEY_ALIAS=$EASYCALC_KEY_ALIAS"
+          } >> "$GITHUB_ENV"
+      - run: flutter build apk --release
+      - run: flutter build appbundle --release
+      - name: Name the files
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "${GITHUB_REF_TYPE}" = "tag" ] || version="${GITHUB_SHA::8}"
+          mv build/app/outputs/flutter-apk/app-release.apk "EasyCalc-${version}.apk"
+          mv build/app/outputs/bundle/release/app-release.aab "EasyCalc-${version}.aab"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: |
+            EasyCalc-*.apk
+            EasyCalc-*.aab
+
+  release:
+    name: Add to release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes || sleep 20
+          gh release upload "$GITHUB_REF_NAME" EasyCalc-*.apk EasyCalc-*.aab --repo "$GITHUB_REPOSITORY" --clobber

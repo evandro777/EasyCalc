@@ -1,0 +1,77 @@
+name: AppImage
+
+# Builds the AppImage on every push to master and on pull requests, and adds it to the GitHub release
+# when a version tag (v1.0.1, ...) is pushed.
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appimage-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  build:
+    name: Build AppImage
+    runs-on: ubuntu-22.04 # oldest glibc for AppImage compatibility
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches pubspec.yaml
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          app=$(sed -nE 's/^version: *([^+]*).*/\1/p' pubspec.yaml)
+          [ "${GITHUB_REF_NAME#v}" = "$app" ] || { echo "tag != pubspec $app"; exit 1; }
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - name: appimagetool
+        run: |
+          # Pinned release + checksum (the "continuous" build changes under us). To upgrade: pick a new release, run sha256sum on it.
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c -
+          chmod +x appimagetool
+          # No FUSE on the runner: unpack instead of running the AppImage directly.
+          ./appimagetool --appimage-extract >/dev/null
+          sudo ln -s "$PWD/squashfs-root/AppRun" /usr/local/bin/appimagetool
+      - run: linux/packaging/build-appimage.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: appimage-x86_64
+          path: |
+            EasyCalc-*.AppImage
+            EasyCalc-*.AppImage.zsync
+
+  release:
+    name: Add to release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: appimage-x86_64
+      # Create the release if no other workflow got there first.
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes || sleep 20
+          gh release upload "$GITHUB_REF_NAME" EasyCalc-*.AppImage* --repo "$GITHUB_REPOSITORY" --clobber

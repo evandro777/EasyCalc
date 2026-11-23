@@ -1,0 +1,29 @@
+# Packages the prebuilt `flutter build linux --release` bundle (flatpak-builder has no network).
+# Expects the bundle copied to ./bundle next to this file (CI does this).
+app-id: io.github.evandro777.EasyCalc
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+command: easycalc
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+modules:
+  - name: easycalc
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/easycalc
+      - cp -r bundle/* /app/easycalc/
+      - mkdir -p /app/bin
+      - ln -s /app/easycalc/easycalc /app/bin/easycalc
+      - install -Dm644 io.github.evandro777.EasyCalc.desktop /app/share/applications/io.github.evandro777.EasyCalc.desktop
+      - install -Dm644 io.github.evandro777.EasyCalc.metainfo.xml /app/share/metainfo/io.github.evandro777.EasyCalc.metainfo.xml
+      - install -Dm644 io.github.evandro777.EasyCalc.svg /app/share/icons/hicolor/scalable/apps/io.github.evandro777.EasyCalc.svg
+    sources:
+      - type: dir
+        path: bundle
+        dest: bundle
+      - type: dir
+        path: ../linux/packaging

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.evandro777.EasyCalc</id>
+  <name>EasyCalc</name>
+  <summary>Calculator, unit price comparison and percentages</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>A simple calculator with a unit price comparer (finds the cheapest option) and a percentage calculator that fills in the missing value.</p>
+  </description>
+  <url type="homepage">https://github.com/evandro777/EasyCalc</url>
+  <developer id="io.github.evandro777">
+    <name>evandro777</name>
+  </developer>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://evandro777.github.io/EasyCalc/screenshots/calculator.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://evandro777.github.io/EasyCalc/screenshots/unit-price.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://evandro777.github.io/EasyCalc/screenshots/percentage.png</image>
+    </screenshot>
+  </screenshots>
+  <launchable type="desktop-id">io.github.evandro777.EasyCalc.desktop</launchable>
+  <provides><binary>easycalc</binary></provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-11-16"/>
+  </releases>
+</component>
