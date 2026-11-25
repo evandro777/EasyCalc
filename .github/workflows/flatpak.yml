@@ -51,9 +51,9 @@ jobs:
     name: Build bundle
     needs: tarball
     runs-on: ubuntu-24.04
-    # Flathub's CI image, GNOME 49 preinstalled. Must match runtime-version in flatpak/io.github.evandro777.EasyCalc.yml.
+    # Flathub's CI image, GNOME 50 preinstalled. Must match runtime-version in flatpak/io.github.evandro777.EasyCalc.yml.
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
       - uses: actions/checkout@v7
