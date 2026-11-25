@@ -1,9 +1,9 @@
 # Packages the prebuilt `flutter build linux --release` bundle (flatpak-builder has no network).
 # Expects the bundle copied to ./bundle next to this file (CI does this).
 app-id: io.github.evandro777.EasyCalc
-runtime: org.gnome.Platform
-runtime-version: '50'
-sdk: org.gnome.Sdk
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
 command: easycalc
 finish-args:
   - --share=ipc
